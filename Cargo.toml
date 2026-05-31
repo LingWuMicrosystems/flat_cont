@@ -5,3 +5,4 @@ edition = "2024"
 
 [dependencies]
 serde = { version = "1.0.228", default-features = false, features = [ "alloc", "derive", "serde_derive" ] }
+smallvec = { version = "1.15.1", features = ["serde"] }

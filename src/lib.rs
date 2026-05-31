@@ -3,6 +3,7 @@ extern crate alloc;
 
 use alloc::{string::String, vec::Vec};
 use serde::{Deserialize, Serialize};
+use smallvec::SmallVec;
 
 #[derive(Deserialize, Serialize, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 #[repr(transparent)]
@@ -53,12 +54,17 @@ pub struct StaticData {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ExternDecl(pub String);
+pub struct ExternDecl {
+    pub name: String,
+    pub param: Vec<RawType>,
+    pub ret: RawType,
+}
 
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct FlatContinuation {
     pub name: Option<String>,
-    pub param: Vec<RawType>,
+    pub effects: Vec<String>,
+    pub params: Vec<RawType>,
     // pub node_start: NodeId,
     // pub node_count: NodeId,
     pub contained_nodes: Vec<NodeId>,
@@ -68,59 +74,99 @@ pub struct FlatContinuation {
 #[derive(Deserialize, Serialize, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum RawType {
     Ptr,
-    Scalar(u16), // bit
+    Scalar(u16),
+    Vector { elem_bits: u16 },
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Terminator {
     Jump {
+        effect_args: Vec<(String, NodeId)>,
+        common_args: Vec<NodeId>,
         target: ContId,
-        args: Vec<NodeId>,
     },
     Branch {
+        effect_args: Vec<(String, NodeId)>,
+        common_args: Vec<NodeId>,
         cond: NodeId,
         then_target: ContId,
         else_target: ContId,
-        args: Vec<NodeId>,
     },
     Switch {
+        effect_args: Vec<(String, NodeId)>,
+        common_args: Vec<NodeId>,
         case: NodeId,
         targets: Vec<ContId>,
-        args: Vec<NodeId>,
     },
     Return(Vec<NodeId>),
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Node {
-    Const(i64),
+    Const(u64, RawType),
     DataRef(DataId),
+    ExternRef(ExternId),
     ContRef(ContId),
+    Param(usize),
+    EffectParam(usize),
     // load store
     Load {
         data_type: RawType,
-        signed: bool,
         effect_state: NodeId,
         addr: NodeId,
+        signed: bool,
     },
     Store {
         data_type: RawType,
-        signed: bool,
         effect_state: NodeId,
         addr: NodeId,
         value: NodeId,
     },
+    AtomicCAS {
+        data_type: RawType,
+        effect_state: NodeId,
+        addr: NodeId,
+        old: NodeId,
+        new: NodeId,
+    },
+    AtomicRMW {
+        data_type: RawType,
+        effect_state: NodeId,
+        addr: NodeId,
+        value: NodeId,
+        operator: AtomicRMWCode,
+    },
     // Compute
     Icmp(ICond, NodeId, NodeId),
-
-    Unary(Opcode, NodeId),
-    Binary(Opcode, NodeId, NodeId),
-    Ternary(Opcode, NodeId, NodeId, NodeId),
+    Compute(Opcode, SmallVec<[NodeId; 3]>),
     Call {
         target: ContId,
+        effect_args: Vec<(String, NodeId)>,
         args: Vec<NodeId>,
     },
 }
+
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, Hash)]
+pub enum AtomicRMWCode {
+    Swap,
+    Add,
+    Sub,
+    And,
+    Nand,
+    Or,
+    Xor,
+    Max,
+    Min,
+    MaxSign,
+    MinSign,
+    Fadd,
+    Fsub,
+    Fmax,
+    Fmin,
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct Opcode(pub String);
 
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, Hash)]
 #[repr(u16)]
@@ -135,40 +181,4 @@ pub enum ICond {
     GeSign,
     LtSign,
     LeSign,
-}
-
-#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, Hash)]
-#[repr(u16)]
-pub enum Opcode {
-    Invalid = 0,
-    Add,
-    Sub,
-    Mul,
-    Div,
-    DivSign,
-    Rem,
-    RemSign,
-
-    And,
-    Or,
-    Xor,
-    Not,
-
-    Shl,
-    Shr,
-    ShrSign,
-    Eq,
-    Ne,
-
-    Lt,
-    Le,
-    Gt,
-    Ge,
-
-    Minu,
-    Mins,
-    Maxu,
-    Maxs,
-
-    Select,
 }
