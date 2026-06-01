@@ -25,9 +25,7 @@ pub struct FlatContGraph {
     pub static_data: Vec<StaticData>,
     pub externals: Vec<ExternDecl>,
 
-    pub nodes: Vec<Node>,
     pub continuations: Vec<FlatContinuation>,
-
     pub exports: Vec<ExportedSymbol>,
 }
 
@@ -65,9 +63,7 @@ pub struct FlatContinuation {
     pub name: Option<String>,
     pub effects: Vec<String>,
     pub params: Vec<RawType>,
-    // pub node_start: NodeId,
-    // pub node_count: NodeId,
-    pub contained_nodes: Vec<NodeId>,
+    pub nodes: Vec<Node>,
     pub terminator: Terminator,
 }
 
