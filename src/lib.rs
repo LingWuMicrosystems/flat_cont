@@ -135,7 +135,7 @@ pub enum Node {
     },
     // Compute
     Icmp(ICond, NodeId, NodeId),
-    Compute(Opcode, SmallVec<[NodeId; 3]>),
+    Compute(Opcode, SmallVec<[NodeId; 4]>),
     Call {
         target: ContId,
         effect_args: Vec<(String, NodeId)>,
