@@ -69,6 +69,7 @@ pub struct FlatContinuation {
 
 #[derive(Deserialize, Serialize, Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum RawType {
+    Token,
     Ptr,
     Scalar(u16),
     Vector { elem_bits: u16 },
