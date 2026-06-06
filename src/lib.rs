@@ -1,7 +1,7 @@
 #![no_std]
 extern crate alloc;
 
-use alloc::{string::String, vec::Vec};
+use alloc::{boxed::Box, string::String, vec::Vec};
 use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 
@@ -67,12 +67,14 @@ pub struct FlatContinuation {
     pub terminator: Terminator,
 }
 
-#[derive(Deserialize, Serialize, Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum RawType {
     Token,
     Ptr,
     Scalar(u16),
     Vector { elem_bits: u16 },
+    Array(u32, Box<RawType>),
+    Struct(Vec<RawType>),
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, Hash)]
