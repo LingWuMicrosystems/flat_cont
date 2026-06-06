@@ -136,6 +136,7 @@ pub enum Node {
         operator: AtomicRMWCode,
     },
     // Compute
+    GEP(RawType, SmallVec<[NodeId; 3]>),
     Icmp(ICond, NodeId, NodeId),
     Compute(Opcode, SmallVec<[NodeId; 4]>),
     Call {
