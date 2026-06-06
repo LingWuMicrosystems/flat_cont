@@ -135,7 +135,9 @@ pub enum Node {
     },
     // Compute
     GEP(RawType, NodeId, SmallVec<[NodeId; 3]>),
+    Select(NodeId, NodeId, NodeId),
     Icmp(ICond, NodeId, NodeId),
+    // Fcmp(FCond, NodeId, NodeId),
     Compute(Opcode, SmallVec<[NodeId; 4]>),
     Call {
         target: ContId,
@@ -164,7 +166,21 @@ pub enum AtomicRMWCode {
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, Hash)]
-pub struct Opcode(pub String);
+pub enum Opcode {
+    Add,
+    Sub,
+    Mul,
+    Div,
+    DivSign,
+    Rem,
+    RemSign,
+    ShiftLeft,
+    ShiftRight,
+    ShiftRightSign,
+    And,
+    Or,
+    Xor,
+}
 
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, Hash)]
 #[repr(u16)]
