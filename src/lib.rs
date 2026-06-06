@@ -20,8 +20,6 @@ pub struct ExternId(pub u32);
 
 #[derive(Deserialize, Serialize, Debug, Clone)]
 pub struct FlatContGraph {
-    pub target_arch: u8,
-
     pub static_data: Vec<StaticData>,
     pub externals: Vec<ExternDecl>,
 
