@@ -30,6 +30,7 @@ fn get_inputs(node: &BBNode) -> (Vec<BbNid>, Vec<BbNid>) {
         BBNode::Select(c, t, f) => { com.extend([*c, *t, *f]); }
         BBNode::Icmp(_, a, b) => { com.extend([*a, *b]); }
         BBNode::Compute(_, operands) => { com.extend(operands.iter().copied()); }
+        BBNode::Proj(base, _) => { com.push(*base); }
         BBNode::Call { effect_args, args, .. } => {
             eff.extend(effect_args.iter().map(|(_, n)| *n));
             com.extend(args.iter().copied());
@@ -312,6 +313,7 @@ fn infer_type(node: &BBNode) -> RawType {
         | BBNode::GEP(t, ..) => t.clone(),
         BBNode::Icmp(..) | BBNode::Select(..) => RawType::Scalar(1),
         BBNode::Compute(..) => RawType::Scalar(32),
+        BBNode::Proj(..) => RawType::Token,
         BBNode::Param(..) | BBNode::EffectParam(..) => RawType::Token,
         _ => RawType::Token,
     }
@@ -339,6 +341,7 @@ fn remap_node(node: &BBNode, m: &[usize]) -> FCNode {
         BBNode::Select(c, t, f) => FCNode::Select(id(c), id(t), id(f)),
         BBNode::Icmp(cond, a, b) => FCNode::Icmp(cond.clone(), id(a), id(b)),
         BBNode::Compute(op, ops) => FCNode::Compute(op.clone(), ops.iter().map(|n| id(n)).collect()),
+        BBNode::Proj(base, idx) => FCNode::Proj(id(base), *idx),
         BBNode::Call { target, effect_args, args } =>
             FCNode::Call { target: fcid(target.0), effect_args: effect_args.iter().map(|(s, n)| (s.clone(), id(n))).collect(), args: args.iter().map(|n| id(n)).collect() },
         BBNode::Param(..) | BBNode::EffectParam(..) => panic!("param in body"),

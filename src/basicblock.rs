@@ -95,6 +95,7 @@ pub enum Node {
     Icmp(ICond, NodeId, NodeId),
     // Fcmp(FCond, NodeId, NodeId),
     Compute(Opcode, SmallVec<[NodeId; 4]>),
+    Proj(NodeId, u8),
     Call {
         target: ContId,
         effect_args: Vec<(String, NodeId)>,
