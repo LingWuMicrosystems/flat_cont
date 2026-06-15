@@ -31,6 +31,54 @@ Barrier（Call/Return）本身就是隐式汇合点。分支合并走正常的 t
 
 `Terminator.effect_args: Vec<(String, NodeId)>` 中的名字仅为调试和可读性，算法不依赖名称做路由。Effect chain 的结构由前端通过 `effect_state` 字段显式构造。
 
+## 去函数化（Defunctionalization）
+
+将整个程序或模块拍扁成一个巨大的状态机函数，用显式的全局控制流替代原本的函数调用。这是一个 `BBG → BBG` 的 Pass，紧邻 `BBG → FlatCont` 之前执行。
+
+### 第一步：函数识别与 State_ID 分配
+
+扫描整个 BBG，提取所有函数（Function），为每个函数的入口块分配一个唯一的 `State_ID`。
+
+### 第二步：构建 Dispatcher
+
+创建一个 `Dispatcher` 块，内部是一个巨大的 Switch 结构，根据当前的 `State_ID` 跳转到对应函数的入口块。
+
+### 第三步：处理 Call 指令
+
+遇到 `Call` 指令时，将其拆分为前后两半：
+
+**前半段（调用点）：**
+1. 将当前函数的 `Live-Out` 变量 Store 到 Context 内存中。
+2. 将当前块的地址（返回地址）设为 `Return_ID`，写入 Context。
+3. 将 `State_ID` 设为被调用函数的入口 `State_ID`。
+4. 生成一条跳转边，指向 `Dispatcher`。
+
+**后半段（调用返回点）：**
+1. 这是一个全新的 BBG Block。为它分配一个新的 `State_ID`。
+2. 在块开头生成 `Load` 指令，从 Context 内存中恢复之前的 `Live-Out` 变量。
+3. 继续执行原有的后续逻辑。
+
+### 第四步：处理 Return 指令
+
+当遇到原来的 `Return` 指令时，不再执行硬件的 Ret：
+1. 从 Context 中读取 `Return_ID`。
+2. 将该 ID 设为 Next State。
+3. 生成一条跳转边，指向 `Dispatcher`。
+
+### 第五步：清理
+
+完成重写后，旧的 `Call` 和 `Return` 指令被彻底从 BBG 中删除。整个程序变成一张巨大的、互相交织的控制流图。
+
+### 工程注意事项
+
+**Pass 的执行时机（极度重要）：**
+
+这个 `BBG → BBG` 的状态机重写 Pass，必须放在**所有常规 BBG 优化（如死代码消除、常量折叠、循环展开等）全部完成之后**，也就是**紧挨着进入 `BBG → FlatCont` 之前**执行。
+
+原因：转换后的 BBG 是一张充满了巨大 Switch 和复杂访存的图，原有的标准优化器根本看不懂这种代码，强行优化只会适得其反。
+
+---
+
 ## BB → FlatCont 算法
 
 输入：`BasicBlockGraph`（BasicBlock 列表 + 全局 Node 池）
