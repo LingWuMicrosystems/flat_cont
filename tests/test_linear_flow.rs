@@ -1,11 +1,19 @@
-use flat_cont::basicblock::{BasicBlock, BasicBlockGraph, Node as BbNode, NodeId as BbNid, Terminator as BbTerm};
+use flat_cont::basicblock::{
+    BasicBlock, BasicBlockGraph, Node as BbNode, NodeId as BbNid, Terminator as BbTerm,
+};
 use flat_cont::bb2flatcont::bb_to_flat_cont;
 use flat_cont::common::{Opcode, RawType, Value};
 use flat_cont::flatcont::{Node as FcNode, NodeId as FcNid, Terminator as FcTerm};
 
-fn fid(x: u32) -> FcNid { FcNid(x) }
-fn cid(x: u32) -> flat_cont::basicblock::ContId { flat_cont::basicblock::ContId(x) }
-fn val(x: u32) -> Value { Value::Node(x) }
+fn fid(x: u32) -> FcNid {
+    FcNid(x)
+}
+fn cid(x: u32) -> flat_cont::basicblock::ContId {
+    flat_cont::basicblock::ContId(x)
+}
+fn val(x: u32) -> Value {
+    Value::Node(x)
+}
 
 // f(x) { let y = x + 1; return y * 2; }
 fn make_linear_graph() -> BasicBlockGraph {
@@ -14,11 +22,11 @@ fn make_linear_graph() -> BasicBlockGraph {
         static_data: vec![],
         externals: vec![],
         nodes: vec![
-            BbNode::Param(0),                                               // 0: x
-            BbNode::Const(1, RawType::Scalar(32)),                         // 1: 1
-            BbNode::Compute(Opcode::Add, smallvec::smallvec![val(0), val(1)]),   // 2: y = x + 1
-            BbNode::Const(2, RawType::Scalar(32)),                         // 3: 2
-            BbNode::Compute(Opcode::Mul, smallvec::smallvec![val(2), val(3)]),   // 4: ret = y * 2
+            BbNode::Param(0),                                                  // 0: x
+            BbNode::Const(1, RawType::Scalar(32)),                             // 1: 1
+            BbNode::Compute(Opcode::Add, smallvec::smallvec![val(0), val(1)]), // 2: y = x + 1
+            BbNode::Const(2, RawType::Scalar(32)),                             // 3: 2
+            BbNode::Compute(Opcode::Mul, smallvec::smallvec![val(2), val(3)]), // 4: ret = y * 2
         ],
         bbs: vec![
             BasicBlock {
@@ -57,9 +65,11 @@ fn test_linear_flow() {
         if ops[0] == val(0) && ops[1] == val(1)
     ));
     // Jump: passes y{body[1]=fid(2)} to target cont 1
-    assert!(matches!(&c0.terminator, FcTerm::Jump { common_args, target, .. }
-        if common_args == &vec![val(2)] && target.0 == 1
-    ));
+    assert!(
+        matches!(&c0.terminator, FcTerm::Jump { common_args, target, .. }
+            if common_args == &vec![val(2)] && target.0 == 1
+        )
+    );
 
     // ---- Cont 1: params=[y], body=[Const(2), ret=y*2] ----
     let c1 = &result.continuations[1];
