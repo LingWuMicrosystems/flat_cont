@@ -1,7 +1,7 @@
 use alloc::{string::String, vec, vec::Vec};
 
 use crate::basicblock::{BasicBlock, BasicBlockGraph, ContId as BbCid, Node as BBNode, NodeId as BbNid, Terminator as BBTerm};
-use crate::common::RawType;
+use crate::common::{RawType, Value};
 use crate::flatcont::{ContId as FcCid, FlatContinuation, FlatContGraph, Node as FCNode, NodeId as FcNid, Terminator as FCTerm};
 
 // ---------------------------------------------------------------------------
@@ -19,24 +19,24 @@ fn dedup(v: &mut Vec<BbNid>) {
     }
 }
 
+fn as_node(v: &Value) -> BbNid { BbNid(v.as_node()) }
+
 fn get_inputs(node: &BBNode) -> (Vec<BbNid>, Vec<BbNid>) {
     let (mut eff, mut com) = (Vec::new(), Vec::new());
     match node {
-        BBNode::Load { effect_state, addr, .. } => { eff.push(*effect_state); com.push(*addr); }
-        BBNode::Store { effect_state, addr, value, .. } => { eff.push(*effect_state); com.extend([*addr, *value]); }
-        BBNode::AtomicCAS { effect_state, addr, old, new, .. } => { eff.push(*effect_state); com.extend([*addr, *old, *new]); }
-        BBNode::AtomicRMW { effect_state, addr, value, .. } => { eff.push(*effect_state); com.extend([*addr, *value]); }
-        BBNode::GEP(_, base, indices) => { com.push(*base); com.extend(indices.iter().copied()); }
-        BBNode::Select(c, t, f) => { com.extend([*c, *t, *f]); }
-        BBNode::Icmp(_, a, b) => { com.extend([*a, *b]); }
-        BBNode::Compute(_, operands) => { com.extend(operands.iter().copied()); }
-        BBNode::Proj(base, _) => { com.push(*base); }
-        BBNode::TokenMerge(effect_states) => {
-            eff.extend(effect_states.iter().copied());
-        }
+        BBNode::Load { effect_state, addr, .. } => { eff.push(as_node(effect_state)); com.push(as_node(addr)); }
+        BBNode::Store { effect_state, addr, value, .. } => { eff.push(as_node(effect_state)); com.extend([as_node(addr), as_node(value)]); }
+        BBNode::AtomicCAS { effect_state, addr, old, new, .. } => { eff.push(as_node(effect_state)); com.extend([as_node(addr), as_node(old), as_node(new)]); }
+        BBNode::AtomicRMW { effect_state, addr, value, .. } => { eff.push(as_node(effect_state)); com.extend([as_node(addr), as_node(value)]); }
+        BBNode::GEP(_, base, indices) => { com.push(as_node(base)); com.extend(indices.iter().map(|v| as_node(v))); }
+        BBNode::Select(c, t, f) => { com.extend([as_node(c), as_node(t), as_node(f)]); }
+        BBNode::Icmp(_, a, b) => { com.extend([as_node(a), as_node(b)]); }
+        BBNode::Compute(_, operands) => { com.extend(operands.iter().map(|v| as_node(v))); }
+        BBNode::Proj(base, _) => { com.push(as_node(base)); }
+        BBNode::TokenMerge(effect_states) => { eff.extend(effect_states.iter().map(|v| as_node(v))); }
         BBNode::Call { effect_args, args, .. } => {
-            eff.extend(effect_args.iter().map(|(_, n)| *n));
-            com.extend(args.iter().copied());
+            eff.extend(effect_args.iter().map(|(_, v)| as_node(v)));
+            com.extend(args.iter().map(|v| as_node(v)));
         }
         _ => {}
     }
@@ -68,7 +68,7 @@ fn compute_pres(bbs: &[BasicBlock]) -> Vec<Vec<BbCid>> {
 // Terminator field access (read / append / set)
 // ---------------------------------------------------------------------------
 
-fn term_eff_slice(t: &BBTerm) -> &[(String, BbNid)] {
+fn term_eff_slice(t: &BBTerm) -> &[(String, Value)] {
     match t {
         BBTerm::Jump { effect_args, .. }
         | BBTerm::Branch { effect_args, .. }
@@ -77,7 +77,7 @@ fn term_eff_slice(t: &BBTerm) -> &[(String, BbNid)] {
     }
 }
 
-fn term_com_slice(t: &BBTerm) -> &[BbNid] {
+fn term_com_slice(t: &BBTerm) -> &[Value] {
     match t {
         BBTerm::Jump { common_args, .. }
         | BBTerm::Branch { common_args, .. }
@@ -86,7 +86,7 @@ fn term_com_slice(t: &BBTerm) -> &[BbNid] {
     }
 }
 
-fn eff_args_mut(t: &mut BBTerm) -> &mut Vec<(String, BbNid)> {
+fn eff_args_mut(t: &mut BBTerm) -> &mut Vec<(String, Value)> {
     match t {
         BBTerm::Jump { effect_args, .. }
         | BBTerm::Branch { effect_args, .. }
@@ -95,7 +95,7 @@ fn eff_args_mut(t: &mut BBTerm) -> &mut Vec<(String, BbNid)> {
     }
 }
 
-fn com_args_mut(t: &mut BBTerm) -> &mut Vec<BbNid> {
+fn com_args_mut(t: &mut BBTerm) -> &mut Vec<Value> {
     match t {
         BBTerm::Jump { common_args, .. }
         | BBTerm::Branch { common_args, .. }
@@ -105,21 +105,23 @@ fn com_args_mut(t: &mut BBTerm) -> &mut Vec<BbNid> {
 }
 
 fn push_eff(t: &mut BBTerm, nid: BbNid) {
+    let v = Value::Node(nid.0);
     let ea = eff_args_mut(t);
-    if !ea.iter().any(|(_, n)| *n == nid) { ea.push((String::new(), nid)); }
+    if !ea.iter().any(|(_, n)| *n == v) { ea.push((String::new(), v)); }
 }
 
 fn push_com(t: &mut BBTerm, nid: BbNid) {
+    let v = Value::Node(nid.0);
     let ca = com_args_mut(t);
-    if !ca.contains(&nid) { ca.push(nid); }
+    if !ca.contains(&v) { ca.push(v); }
 }
 
 fn set_eff(t: &mut BBTerm, nids: &[BbNid]) {
-    *eff_args_mut(t) = nids.iter().map(|&n| (String::new(), n)).collect();
+    *eff_args_mut(t) = nids.iter().map(|&n| (String::new(), Value::Node(n.0))).collect();
 }
 
 fn set_com(t: &mut BBTerm, nids: Vec<BbNid>) {
-    *com_args_mut(t) = nids;
+    *com_args_mut(t) = nids.into_iter().map(|n| Value::Node(n.0)).collect();
 }
 
 // ---------------------------------------------------------------------------
@@ -127,11 +129,13 @@ fn set_com(t: &mut BBTerm, nids: Vec<BbNid>) {
 // ---------------------------------------------------------------------------
 
 fn propagate_com(bbs: &[BasicBlock], pres: &[Vec<BbCid>], end_map: &[usize], bb_id: usize) -> Vec<BbNid> {
-    let own: Vec<BbNid> = term_com_slice(&bbs[bb_id].terminator).to_vec();
+    let own_vals = term_com_slice(&bbs[bb_id].terminator);
+    let own: Vec<BbNid> = own_vals.iter().map(|v| as_node(v)).collect();
     let mut req = own.clone();
     for pre in &pres[bb_id] {
-        for n in term_com_slice(&bbs[pre.0 as usize].terminator) {
-            if !req.contains(n) { req.push(*n); }
+        for v in term_com_slice(&bbs[pre.0 as usize].terminator) {
+            let n = as_node(v);
+            if !req.contains(&n) { req.push(n); }
         }
     }
     req.retain(|k| {
@@ -144,11 +148,12 @@ fn propagate_com(bbs: &[BasicBlock], pres: &[Vec<BbCid>], end_map: &[usize], bb_
 
 fn propagate_eff(bbs: &[BasicBlock], pres: &[Vec<BbCid>], end_map: &[usize], bb_id: usize) -> Vec<BbNid> {
     let mut own: Vec<BbNid> = Vec::new();
-    for (_, n) in term_eff_slice(&bbs[bb_id].terminator) { own.push(*n); }
+    for (_, v) in term_eff_slice(&bbs[bb_id].terminator) { own.push(as_node(v)); }
     let mut req = own.clone();
     for pre in &pres[bb_id] {
-        for (_, n) in term_eff_slice(&bbs[pre.0 as usize].terminator) {
-            if !req.contains(n) { req.push(*n); }
+        for (_, v) in term_eff_slice(&bbs[pre.0 as usize].terminator) {
+            let n = as_node(v);
+            if !req.contains(&n) { req.push(n); }
         }
     }
     req.retain(|k| {
@@ -265,14 +270,16 @@ fn remap_conts(bbs: &[BasicBlock], g_nodes: &[BBNode]) -> Vec<FlatContinuation> 
         }
 
         // External refs from terminator args
-        for n in term_com_slice(&bb.terminator) {
-            if !bb.node_ids.contains(n) && !seen[n.0 as usize] {
-                seen[n.0 as usize] = true; p_ids.push(*n);
+        for v in term_com_slice(&bb.terminator) {
+            let n = as_node(v);
+            if !bb.node_ids.contains(&n) && !seen[n.0 as usize] {
+                seen[n.0 as usize] = true; p_ids.push(n);
             }
         }
-        for (_, n) in term_eff_slice(&bb.terminator) {
-            if !bb.node_ids.contains(n) && !seen[n.0 as usize] {
-                seen[n.0 as usize] = true; e_ids.push(*n);
+        for (_, v) in term_eff_slice(&bb.terminator) {
+            let n = as_node(v);
+            if !bb.node_ids.contains(&n) && !seen[n.0 as usize] {
+                seen[n.0 as usize] = true; e_ids.push(n);
             }
         }
 
@@ -325,48 +332,53 @@ fn infer_type(node: &BBNode) -> RawType {
 
 fn effect_name(_node: &BBNode) -> String { String::new() }
 
+fn remap_val(v: &Value, m: &[usize]) -> Value {
+    match v {
+        Value::Node(n) => Value::Node(m[*n as usize] as u32),
+        other => other.clone(),
+    }
+}
+
 fn remap_node(node: &BBNode, m: &[usize]) -> FCNode {
-    let id = |n: &BbNid| fid(m[n.0 as usize] as u32);
     match node {
         BBNode::Const(v, t) => FCNode::Const(*v, t.clone()),
         BBNode::DataRef(d) => FCNode::DataRef(*d),
         BBNode::ExternRef(e) => FCNode::ExternRef(*e),
         BBNode::ContRef(c) => FCNode::ContRef(fcid(c.0)),
         BBNode::Load { data_type, effect_state, addr, signed } =>
-            FCNode::Load { data_type: data_type.clone(), effect_state: id(effect_state), addr: id(addr), signed: *signed },
+            FCNode::Load { data_type: data_type.clone(), effect_state: remap_val(effect_state, m), addr: remap_val(addr, m), signed: *signed },
         BBNode::Store { data_type, effect_state, addr, value } =>
-            FCNode::Store { data_type: data_type.clone(), effect_state: id(effect_state), addr: id(addr), value: id(value) },
+            FCNode::Store { data_type: data_type.clone(), effect_state: remap_val(effect_state, m), addr: remap_val(addr, m), value: remap_val(value, m) },
         BBNode::AtomicCAS { data_type, effect_state, addr, old, new } =>
-            FCNode::AtomicCAS { data_type: data_type.clone(), effect_state: id(effect_state), addr: id(addr), old: id(old), new: id(new) },
+            FCNode::AtomicCAS { data_type: data_type.clone(), effect_state: remap_val(effect_state, m), addr: remap_val(addr, m), old: remap_val(old, m), new: remap_val(new, m) },
         BBNode::AtomicRMW { data_type, effect_state, addr, value, operator } =>
-            FCNode::AtomicRMW { data_type: data_type.clone(), effect_state: id(effect_state), addr: id(addr), value: id(value), operator: operator.clone() },
+            FCNode::AtomicRMW { data_type: data_type.clone(), effect_state: remap_val(effect_state, m), addr: remap_val(addr, m), value: remap_val(value, m), operator: operator.clone() },
         BBNode::GEP(t, base, indices) =>
-            FCNode::GEP(t.clone(), id(base), indices.iter().map(|n| id(n)).collect()),
-        BBNode::Select(c, t, f) => FCNode::Select(id(c), id(t), id(f)),
-        BBNode::Icmp(cond, a, b) => FCNode::Icmp(cond.clone(), id(a), id(b)),
-        BBNode::Compute(op, ops) => FCNode::Compute(op.clone(), ops.iter().map(|n| id(n)).collect()),
-        BBNode::Proj(base, idx) => FCNode::Proj(id(base), *idx),
+            FCNode::GEP(t.clone(), remap_val(base, m), indices.iter().map(|v| remap_val(v, m)).collect()),
+        BBNode::Select(c, t, f) => FCNode::Select(remap_val(c, m), remap_val(t, m), remap_val(f, m)),
+        BBNode::Icmp(cond, a, b) => FCNode::Icmp(cond.clone(), remap_val(a, m), remap_val(b, m)),
+        BBNode::Compute(op, ops) => FCNode::Compute(op.clone(), ops.iter().map(|v| remap_val(v, m)).collect()),
+        BBNode::Proj(base, idx) => FCNode::Proj(remap_val(base, m), *idx),
         BBNode::TokenMerge(effect_states) =>
-            FCNode::TokenMerge(effect_states.iter().map(|n| id(n)).collect()),
+            FCNode::TokenMerge(effect_states.iter().map(|v| remap_val(v, m)).collect()),
         BBNode::Call { target, effect_args, args } =>
-            FCNode::Call { target: fcid(target.0), effect_args: effect_args.iter().map(|(s, n)| (s.clone(), id(n))).collect(), args: args.iter().map(|n| id(n)).collect() },
+            FCNode::Call { target: fcid(target.0), effect_args: effect_args.iter().map(|(s, v)| (s.clone(), remap_val(v, m))).collect(), args: args.iter().map(|v| remap_val(v, m)).collect() },
         BBNode::Param(..) | BBNode::EffectParam(..) => panic!("param in body"),
     }
 }
 
 fn remap_term(term: &BBTerm, m: &[usize]) -> FCTerm {
-    let id = |n: &BbNid| fid(m[n.0 as usize] as u32);
     match term {
         BBTerm::Jump { effect_args, common_args, target } =>
-            FCTerm::Jump { effect_args: effect_args.iter().map(|(s, n)| (s.clone(), id(n))).collect(), common_args: common_args.iter().map(|n| id(n)).collect(), target: fcid(target.0) },
+            FCTerm::Jump { effect_args: effect_args.iter().map(|(s, v)| (s.clone(), remap_val(v, m))).collect(), common_args: common_args.iter().map(|v| remap_val(v, m)).collect(), target: fcid(target.0) },
         BBTerm::Branch { effect_args, common_args, cond, then_target, else_target } =>
-            FCTerm::Branch { effect_args: effect_args.iter().map(|(s, n)| (s.clone(), id(n))).collect(), common_args: common_args.iter().map(|n| id(n)).collect(), cond: id(cond), then_target: fcid(then_target.0), else_target: fcid(else_target.0) },
+            FCTerm::Branch { effect_args: effect_args.iter().map(|(s, v)| (s.clone(), remap_val(v, m))).collect(), common_args: common_args.iter().map(|v| remap_val(v, m)).collect(), cond: remap_val(cond, m), then_target: fcid(then_target.0), else_target: fcid(else_target.0) },
         BBTerm::Switch { effect_args, common_args, case, targets } =>
-            FCTerm::Switch { effect_args: effect_args.iter().map(|(s, n)| (s.clone(), id(n))).collect(), common_args: common_args.iter().map(|n| id(n)).collect(), case: id(case), targets: targets.iter().map(|t| fcid(t.0)).collect() },
+            FCTerm::Switch { effect_args: effect_args.iter().map(|(s, v)| (s.clone(), remap_val(v, m))).collect(), common_args: common_args.iter().map(|v| remap_val(v, m)).collect(), case: remap_val(case, m), targets: targets.iter().map(|t| fcid(t.0)).collect() },
         BBTerm::Return { effect_args, common_args } =>
             FCTerm::Return {
-                effect_args: effect_args.iter().map(|(s, n)| (s.clone(), id(n))).collect(),
-                common_args: common_args.iter().map(|n| id(n)).collect(),
+                effect_args: effect_args.iter().map(|(s, v)| (s.clone(), remap_val(v, m))).collect(),
+                common_args: common_args.iter().map(|v| remap_val(v, m)).collect(),
             },
     }
 }

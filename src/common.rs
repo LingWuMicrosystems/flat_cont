@@ -91,3 +91,30 @@ pub enum ICond {
     LtSign,
     LeSign,
 }
+
+/// A value that can appear as an operand to a node or terminator.
+///
+/// Follows LLVM's model: constants and parameters are first-class values
+/// that don't need to live in the node pool before they can be referenced.
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, Hash)]
+pub enum Value {
+    /// Reference to a node's result (index into the node pool).
+    Node(u32),
+    /// Compile-time constant.
+    Const(u64, RawType),
+    /// Value parameter (index into the continuation/region's params list).
+    Param(usize),
+    /// Effect parameter (index into the continuation/region's effects list).
+    Effect(usize),
+}
+
+impl Value {
+    /// Extract the node index, panicking if this is not a `Node`.
+    #[track_caller]
+    pub fn as_node(&self) -> u32 {
+        match self {
+            Value::Node(n) => *n,
+            _ => panic!("expected Value::Node, got {:?}", self),
+        }
+    }
+}

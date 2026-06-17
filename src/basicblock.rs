@@ -31,31 +31,32 @@ pub struct BasicBlock {
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Terminator {
     Jump {
-        effect_args: Vec<(String, NodeId)>,
-        common_args: Vec<NodeId>,
+        effect_args: Vec<(String, Value)>,
+        common_args: Vec<Value>,
         target: ContId,
     },
     Branch {
-        effect_args: Vec<(String, NodeId)>,
-        common_args: Vec<NodeId>,
-        cond: NodeId,
+        effect_args: Vec<(String, Value)>,
+        common_args: Vec<Value>,
+        cond: Value,
         then_target: ContId,
         else_target: ContId,
     },
     Switch {
-        effect_args: Vec<(String, NodeId)>,
-        common_args: Vec<NodeId>,
-        case: NodeId,
+        effect_args: Vec<(String, Value)>,
+        common_args: Vec<Value>,
+        case: Value,
         targets: Vec<ContId>,
     },
     Return {
-        effect_args: Vec<(String, NodeId)>,
-        common_args: Vec<NodeId>,
+        effect_args: Vec<(String, Value)>,
+        common_args: Vec<Value>,
     },
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Node {
+    // TODO: these will eventually become Value variants once RVSDG transitions
     Const(u64, RawType),
     DataRef(DataId),
     ExternRef(ExternId),
@@ -65,41 +66,41 @@ pub enum Node {
     // load store
     Load {
         data_type: RawType,
-        effect_state: NodeId,
-        addr: NodeId,
+        effect_state: Value,
+        addr: Value,
         signed: bool,
     },
     Store {
         data_type: RawType,
-        effect_state: NodeId,
-        addr: NodeId,
-        value: NodeId,
+        effect_state: Value,
+        addr: Value,
+        value: Value,
     },
     AtomicCAS {
         data_type: RawType,
-        effect_state: NodeId,
-        addr: NodeId,
-        old: NodeId,
-        new: NodeId,
+        effect_state: Value,
+        addr: Value,
+        old: Value,
+        new: Value,
     },
     AtomicRMW {
         data_type: RawType,
-        effect_state: NodeId,
-        addr: NodeId,
-        value: NodeId,
+        effect_state: Value,
+        addr: Value,
+        value: Value,
         operator: AtomicRMWCode,
     },
     // Compute
-    GEP(RawType, NodeId, SmallVec<[NodeId; 3]>),
-    Select(NodeId, NodeId, NodeId),
-    Icmp(ICond, NodeId, NodeId),
-    // Fcmp(FCond, NodeId, NodeId),
-    Compute(Opcode, SmallVec<[NodeId; 4]>),
-    Proj(NodeId, u8),
-    TokenMerge(Vec<NodeId>),
+    GEP(RawType, Value, SmallVec<[Value; 3]>),
+    Select(Value, Value, Value),
+    Icmp(ICond, Value, Value),
+    // Fcmp(FCond, Value, Value),
+    Compute(Opcode, SmallVec<[Value; 4]>),
+    Proj(Value, u8),
+    TokenMerge(Vec<Value>),
     Call {
         target: ContId,
-        effect_args: Vec<(String, NodeId)>,
-        args: Vec<NodeId>,
+        effect_args: Vec<(String, Value)>,
+        args: Vec<Value>,
     },
 }
