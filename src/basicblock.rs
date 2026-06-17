@@ -96,6 +96,7 @@ pub enum Node {
     // Fcmp(FCond, NodeId, NodeId),
     Compute(Opcode, SmallVec<[NodeId; 4]>),
     Proj(NodeId, u8),
+    TokenMerge(Vec<NodeId>),
     Call {
         target: ContId,
         effect_args: Vec<(String, NodeId)>,
