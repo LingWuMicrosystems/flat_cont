@@ -11,6 +11,34 @@ pub struct NodeId(pub u32);
 #[repr(transparent)]
 pub struct ContId(pub u32);
 
+/// SSA value in the BasicBlockGraph IR.
+///
+/// `Node` refers to a node in the global node pool (`BasicBlockGraph.nodes`).
+/// `Param` / `Effect` refer to basic-block parameter slots.
+/// `Const` is a compile-time immediate.
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, Hash)]
+pub enum Value {
+    /// Reference to a node in the global pool.
+    Node(NodeId),
+    /// Compile-time constant.
+    Const(u64, RawType),
+    /// Value parameter (slot index within a basic block).
+    Param(usize),
+    /// Effect parameter (slot index within a basic block).
+    Effect(usize),
+}
+
+impl Value {
+    /// Extract the node index, panicking if this is not a `Node`.
+    #[track_caller]
+    pub fn as_node(&self) -> NodeId {
+        match self {
+            Value::Node(n) => *n,
+            _ => panic!("expected BbValue::Node, got {:?}", self),
+        }
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BasicBlockGraph {
     pub name: Option<String>,
@@ -94,7 +122,7 @@ pub enum Node {
     GEP(RawType, Value, SmallVec<[Value; 3]>),
     Select(Value, Value, Value),
     Icmp(ICond, Value, Value),
-    // Fcmp(FCond, Value, Value),
+    // Fcmp(FCond, BbValue, BbValue),
     Compute(Opcode, SmallVec<[Value; 4]>),
     Proj(Value, u8),
     TokenMerge(Vec<Value>),

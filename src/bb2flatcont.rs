@@ -2,21 +2,18 @@ use alloc::{string::String, vec, vec::Vec};
 
 use crate::basicblock::{
     BasicBlock, BasicBlockGraph, ContId as BbCid, Node as BBNode, NodeId as BbNid,
-    Terminator as BBTerm,
+    Terminator as BBTerm, Value as BbValue,
 };
-use crate::common::{RawType, Value};
+use crate::common::RawType;
 use crate::flatcont::{
     ContId as FcCid, FlatContGraph, FlatContinuation, Node as FCNode, NodeId as FcNid,
-    Terminator as FCTerm,
+    Terminator as FCTerm, Value as FlatContValue,
 };
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
 
-fn fid(x: u32) -> FcNid {
-    FcNid(x)
-}
 fn cid(x: u32) -> BbCid {
     BbCid(x)
 }
@@ -35,8 +32,8 @@ fn dedup(v: &mut Vec<BbNid>) {
     }
 }
 
-fn as_node(v: &Value) -> BbNid {
-    BbNid(v.as_node())
+fn as_node(v: &BbValue) -> BbNid {
+    v.as_node()
 }
 
 fn get_inputs(node: &BBNode) -> (Vec<BbNid>, Vec<BbNid>) {
@@ -135,7 +132,7 @@ fn compute_pres(bbs: &[BasicBlock]) -> Vec<Vec<BbCid>> {
 // Terminator field access (read / append / set)
 // ---------------------------------------------------------------------------
 
-fn term_eff_slice(t: &BBTerm) -> &[(String, Value)] {
+fn term_eff_slice(t: &BBTerm) -> &[(String, BbValue)] {
     match t {
         BBTerm::Jump { effect_args, .. }
         | BBTerm::Branch { effect_args, .. }
@@ -144,7 +141,7 @@ fn term_eff_slice(t: &BBTerm) -> &[(String, Value)] {
     }
 }
 
-fn term_com_slice(t: &BBTerm) -> &[Value] {
+fn term_com_slice(t: &BBTerm) -> &[BbValue] {
     match t {
         BBTerm::Jump { common_args, .. }
         | BBTerm::Branch { common_args, .. }
@@ -153,7 +150,7 @@ fn term_com_slice(t: &BBTerm) -> &[Value] {
     }
 }
 
-fn eff_args_mut(t: &mut BBTerm) -> &mut Vec<(String, Value)> {
+fn eff_args_mut(t: &mut BBTerm) -> &mut Vec<(String, BbValue)> {
     match t {
         BBTerm::Jump { effect_args, .. }
         | BBTerm::Branch { effect_args, .. }
@@ -162,7 +159,7 @@ fn eff_args_mut(t: &mut BBTerm) -> &mut Vec<(String, Value)> {
     }
 }
 
-fn com_args_mut(t: &mut BBTerm) -> &mut Vec<Value> {
+fn com_args_mut(t: &mut BBTerm) -> &mut Vec<BbValue> {
     match t {
         BBTerm::Jump { common_args, .. }
         | BBTerm::Branch { common_args, .. }
@@ -172,7 +169,7 @@ fn com_args_mut(t: &mut BBTerm) -> &mut Vec<Value> {
 }
 
 fn push_eff(t: &mut BBTerm, nid: BbNid) {
-    let v = Value::Node(nid.0);
+    let v = BbValue::Node(nid);
     let ea = eff_args_mut(t);
     if !ea.iter().any(|(_, n)| *n == v) {
         ea.push((String::new(), v));
@@ -180,7 +177,7 @@ fn push_eff(t: &mut BBTerm, nid: BbNid) {
 }
 
 fn push_com(t: &mut BBTerm, nid: BbNid) {
-    let v = Value::Node(nid.0);
+    let v = BbValue::Node(nid);
     let ca = com_args_mut(t);
     if !ca.contains(&v) {
         ca.push(v);
@@ -190,12 +187,12 @@ fn push_com(t: &mut BBTerm, nid: BbNid) {
 fn set_eff(t: &mut BBTerm, nids: &[BbNid]) {
     *eff_args_mut(t) = nids
         .iter()
-        .map(|&n| (String::new(), Value::Node(n.0)))
+        .map(|&n| (String::new(), BbValue::Node(n)))
         .collect();
 }
 
 fn set_com(t: &mut BBTerm, nids: Vec<BbNid>) {
-    *com_args_mut(t) = nids.into_iter().map(|n| Value::Node(n.0)).collect();
+    *com_args_mut(t) = nids.into_iter().map(|n| BbValue::Node(n)).collect();
 }
 
 // ---------------------------------------------------------------------------
@@ -479,10 +476,12 @@ fn effect_name(_node: &BBNode) -> String {
     String::new()
 }
 
-fn remap_val(v: &Value, m: &[usize]) -> Value {
+fn remap_val(v: &BbValue, m: &[usize]) -> FlatContValue {
     match v {
-        Value::Node(n) => Value::Node(m[*n as usize] as u32),
-        other => other.clone(),
+        BbValue::Node(n) => FlatContValue::Node(FcNid(m[n.0 as usize] as u32)),
+        BbValue::Const(val, t) => FlatContValue::Const(*val, t.clone()),
+        BbValue::Param(i) => FlatContValue::Param(*i),
+        BbValue::Effect(i) => FlatContValue::Effect(*i),
     }
 }
 
