@@ -75,7 +75,7 @@ fn get_inputs(node: &BBNode) -> (Vec<BbNid>, Vec<BbNid>) {
         }
         BBNode::GEP(_, base, indices) => {
             com.push(as_node(base));
-            com.extend(indices.iter().map(|v| as_node(v)));
+            com.extend(indices.iter().map(as_node));
         }
         BBNode::Select(c, t, f) => {
             com.extend([as_node(c), as_node(t), as_node(f)]);
@@ -84,19 +84,19 @@ fn get_inputs(node: &BBNode) -> (Vec<BbNid>, Vec<BbNid>) {
             com.extend([as_node(a), as_node(b)]);
         }
         BBNode::Compute(_, operands) => {
-            com.extend(operands.iter().map(|v| as_node(v)));
+            com.extend(operands.iter().map(as_node));
         }
         BBNode::Proj(base, _) => {
             com.push(as_node(base));
         }
         BBNode::TokenMerge(effect_states) => {
-            eff.extend(effect_states.iter().map(|v| as_node(v)));
+            eff.extend(effect_states.iter().map(as_node));
         }
         BBNode::Call {
             effect_args, args, ..
         } => {
             eff.extend(effect_args.iter().map(|(_, v)| as_node(v)));
-            com.extend(args.iter().map(|v| as_node(v)));
+            com.extend(args.iter().map(as_node));
         }
         _ => {}
     }
@@ -192,7 +192,7 @@ fn set_eff(t: &mut BBTerm, nids: &[BbNid]) {
 }
 
 fn set_com(t: &mut BBTerm, nids: Vec<BbNid>) {
-    *com_args_mut(t) = nids.into_iter().map(|n| BbValue::Node(n)).collect();
+    *com_args_mut(t) = nids.into_iter().map(BbValue::Node).collect();
 }
 
 // ---------------------------------------------------------------------------
@@ -206,7 +206,7 @@ fn propagate_com(
     bb_id: usize,
 ) -> Vec<BbNid> {
     let own_vals = term_com_slice(&bbs[bb_id].terminator);
-    let own: Vec<BbNid> = own_vals.iter().map(|v| as_node(v)).collect();
+    let own: Vec<BbNid> = own_vals.iter().map(as_node).collect();
     let mut req = own.clone();
     for pre in &pres[bb_id] {
         for v in term_com_slice(&bbs[pre.0 as usize].terminator) {
@@ -281,7 +281,7 @@ pub fn bb_to_flat_cont(graph: &BasicBlockGraph) -> FlatContGraph {
                 }
             }
             for pre in &pres[bb_id] {
-                let pre_vis: Vec<BbNid> = vis[pre.0 as usize].iter().copied().collect();
+                let pre_vis: Vec<BbNid> = vis[pre.0 as usize].to_vec();
                 for n in pre_vis {
                     if !seen[n.0 as usize] {
                         seen[n.0 as usize] = true;
