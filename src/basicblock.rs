@@ -50,6 +50,33 @@ pub struct BasicBlockGraph {
     pub bbs: Vec<BasicBlock>,
 }
 
+impl BasicBlockGraph {
+    pub fn add_bb(&mut self) -> ContId {
+        let id = ContId(self.bbs.len() as u32);
+        self.bbs.push(BasicBlock {
+            node_ids: Vec::new(),
+            terminator: Terminator::Return {
+                effect_args: Vec::new(),
+                common_args: Vec::new(),
+            },
+        });
+        id
+    }
+
+    pub fn add_node(&mut self, node: Node) -> NodeId {
+        let id = NodeId(self.nodes.len() as u32);
+        self.nodes.push(node);
+        id
+    }
+
+    pub fn add_to_block(&mut self, bb: ContId, nid: NodeId) {
+        self.bbs[bb.0 as usize].node_ids.push(nid);
+    }
+
+    pub fn set_term(&mut self, bb: ContId, term: Terminator) {
+        self.bbs[bb.0 as usize].terminator = term;
+    }
+}
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BasicBlock {
     pub node_ids: Vec<NodeId>,
