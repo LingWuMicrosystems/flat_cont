@@ -133,6 +133,7 @@ pub enum Node {
     Compute(Opcode, SmallVec<[Value; 4]>),
     Proj(Value, u8),
     TokenMerge(Vec<Value>),
+    Alloc(RawType),
     Call {
         target: Value,
         effect_args: Vec<(String, Value)>,

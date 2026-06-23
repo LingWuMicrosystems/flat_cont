@@ -472,6 +472,7 @@ fn infer_type(node: &BBNode) -> RawType {
         BBNode::Compute(..) => RawType::Scalar(32),
         BBNode::Proj(..) => RawType::Token,
         BBNode::TokenMerge(..) => RawType::Token,
+        BBNode::Alloc(..) => RawType::Ptr,
         BBNode::Param(..) | BBNode::EffectParam(..) => RawType::Token,
         _ => RawType::Token,
     }
@@ -560,6 +561,7 @@ fn remap_node(node: &BBNode, m: &[usize]) -> FCNode {
         BBNode::TokenMerge(effect_states) => {
             FCNode::TokenMerge(effect_states.iter().map(|v| remap_val(v, m)).collect())
         }
+        BBNode::Alloc(t) => FCNode::Alloc(t.clone()),
         BBNode::Call {
             target,
             effect_args,
