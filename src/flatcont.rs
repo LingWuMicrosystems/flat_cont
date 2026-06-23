@@ -134,7 +134,7 @@ pub enum Node {
     Proj(Value, u8),
     TokenMerge(Vec<Value>),
     Call {
-        target: ContId,
+        target: Value,
         effect_args: Vec<(String, Value)>,
         args: Vec<Value>,
     },

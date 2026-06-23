@@ -93,8 +93,13 @@ fn get_inputs(node: &BBNode) -> (Vec<BbNid>, Vec<BbNid>) {
             eff.extend(effect_states.iter().map(as_node));
         }
         BBNode::Call {
-            effect_args, args, ..
+            target,
+            effect_args,
+            args,
         } => {
+            if let BbValue::Node(n) = target {
+                com.push(*n);
+            }
             eff.extend(effect_args.iter().map(|(_, v)| as_node(v)));
             com.extend(args.iter().map(as_node));
         }
@@ -560,7 +565,7 @@ fn remap_node(node: &BBNode, m: &[usize]) -> FCNode {
             effect_args,
             args,
         } => FCNode::Call {
-            target: fcid(target.0),
+            target: remap_val(target, m),
             effect_args: effect_args
                 .iter()
                 .map(|(s, v)| (s.clone(), remap_val(v, m)))
