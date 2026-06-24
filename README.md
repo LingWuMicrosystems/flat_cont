@@ -2,6 +2,10 @@
 
 将 BasicBlock-based IR 转换为 flat continuation 形式。
 
+## 适用范围
+
+BBG 与 Effect chain 是为 Rust 这类非函数式、共享可变语言准备的。从线性类型 IR（如 LinearANF/perceus）lowering 过来时，值的线性性已保证互斥所有权，默认无需 effect 依赖，仅在 ILP publish 点（对象 init 完成）合并写操作的 effect token 到 release 节点。
+
 ## Effect Chain 设计
 
 ### 核心原则：Effect 即 SSA def-use 链
