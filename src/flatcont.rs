@@ -135,6 +135,7 @@ pub enum Effect {
         addr: ValueRef,
         old: ValueRef,
         new: ValueRef,
+        weak: bool,
     },
     AtomicRMW {
         data_type: RawType,
