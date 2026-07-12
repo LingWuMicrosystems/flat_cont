@@ -3,7 +3,8 @@ use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 
 use crate::common::{
-    AtomicRMWCode, DataId, ExternDecl, ExternId, ICond, Opcode, RawType, StaticData,
+    AtomicRMWCode, DataId, ExternDecl, ExternId, ICond, Opcode, Ordering, RawType, StaticData,
+    SyncScope,
 };
 
 #[derive(Deserialize, Serialize, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -103,23 +104,34 @@ pub enum Value {
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, Hash)]
+pub struct AtomicLS {
+    ordering: Ordering,
+    sync_scope: SyncScope,
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum Effect {
     // load store
     Load {
         data_type: RawType,
         effect_state: EffectPath,
+        atomic: Option<AtomicLS>,
         addr: ValueRef,
         // signed: bool,
     },
     Store {
         data_type: RawType,
         effect_state: EffectPath,
+        atomic: Option<AtomicLS>,
         addr: ValueRef,
         value: ValueRef,
     },
+
     AtomicCAS {
         data_type: RawType,
         effect_state: EffectPath,
+        ordering: Ordering,
+        sync_scope: SyncScope,
         addr: ValueRef,
         old: ValueRef,
         new: ValueRef,
@@ -127,6 +139,8 @@ pub enum Effect {
     AtomicRMW {
         data_type: RawType,
         effect_state: EffectPath,
+        ordering: Ordering,
+        sync_scope: SyncScope,
         addr: ValueRef,
         value: ValueRef,
         operator: AtomicRMWCode,

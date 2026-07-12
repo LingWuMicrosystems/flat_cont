@@ -41,6 +41,24 @@ pub struct ExternDecl {
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, Hash)]
+pub enum Ordering {
+    Relaxed,
+    Release,
+    Acquire,
+    AcqRel,
+    SeqCst,
+}
+
+#[derive(Deserialize, Serialize, Debug, Default, Clone, PartialEq, Eq, Hash)]
+pub enum SyncScope {
+    Group,
+    Cluster,
+    Device,
+    #[default]
+    System,
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum AtomicRMWCode {
     Swap,
     Add,
