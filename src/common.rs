@@ -10,7 +10,6 @@ pub struct ExternId(pub u32);
 
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, Hash)]
 pub enum RawType {
-    Token,
     Ptr,
     Scalar(u16),
     Vector { elem_bits: u16 },
@@ -25,7 +24,7 @@ pub enum Visibility {
     Public,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct StaticData {
     pub name: String,
     pub visibility: Visibility,
@@ -34,11 +33,29 @@ pub struct StaticData {
     pub bytes: Vec<u8>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ExternDecl {
     pub name: String,
     pub param: Vec<RawType>,
     pub ret: RawType,
+}
+
+#[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, Hash)]
+pub enum Ordering {
+    Relaxed,
+    Release,
+    Acquire,
+    AcqRel,
+    SeqCst,
+}
+
+#[derive(Deserialize, Serialize, Debug, Default, Clone, PartialEq, Eq, Hash)]
+pub enum SyncScope {
+    Group,
+    Cluster,
+    Device,
+    #[default]
+    System,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, Hash)]
