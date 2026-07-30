@@ -10,7 +10,9 @@ use crate::common::{
 #[derive(Deserialize, Serialize, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(transparent)]
 pub struct ContId(pub u32);
-
+#[derive(Deserialize, Serialize, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[repr(transparent)]
+pub struct FunId(pub u32);
 #[derive(Deserialize, Serialize, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 #[repr(transparent)]
 pub struct ValueId(pub u32);
@@ -29,7 +31,7 @@ pub enum ValueRef {
 
     DataRef(DataId),
     ExternRef(ExternId),
-    ContRef(ContId),
+    FunRef(FunId),
 
     /// The sole ordinary value produced by an effect node.
     ValueFromEffect(EffectId),
