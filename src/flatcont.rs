@@ -107,8 +107,8 @@ pub enum Value {
 
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct AtomicLS {
-    ordering: Ordering,
-    sync_scope: SyncScope,
+    pub ordering: Ordering,
+    pub sync_scope: SyncScope,
 }
 
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, Hash)]
