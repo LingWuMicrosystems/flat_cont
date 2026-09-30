@@ -3,8 +3,8 @@ use serde::{Deserialize, Serialize};
 use smallvec::SmallVec;
 
 use crate::common::{
-    AtomicRMWCode, DataId, ExternDecl, ExternId, ICond, Opcode, Ordering, RawType, StaticData,
-    SyncScope,
+    AtomicRMWCode, DataId, ExternDecl, ExternId, FunctionVisibility, ICond, Opcode, Ordering,
+    RawType, StaticData, SyncScope,
 };
 
 #[derive(Deserialize, Serialize, Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -49,6 +49,11 @@ pub enum EffectPath {
 pub struct FlatContGraph {
     pub name: Option<String>,
 
+    /// The program-entry function. `Some(fun)` marks the function laid out first
+    /// in the code segment; `None` denotes a statically-linkable library graph.
+    #[serde(default)]
+    pub entry: Option<FunId>,
+
     pub static_data: Vec<StaticData>,
     pub externals: Vec<ExternDecl>,
 
@@ -57,6 +62,9 @@ pub struct FlatContGraph {
 
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Function {
+    /// Function-level visibility / export name (`Private` by default).
+    #[serde(default)]
+    pub visibility: FunctionVisibility,
     pub continuations: Vec<FlatContinuation>,
     pub entry: ContId,
 }

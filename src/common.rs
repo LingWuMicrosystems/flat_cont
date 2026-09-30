@@ -24,6 +24,21 @@ pub enum Visibility {
     Public,
 }
 
+/// Function-level visibility / export name.
+///
+/// This is deliberately separate from [`Visibility`] (which `StaticData` uses):
+/// `Public` carries the exported symbol name, so the variant enforces the
+/// "public always names itself, private never does" invariant at the type level,
+/// while [`Visibility`] stays a `Copy`/`repr(u8)` flag for data objects.
+#[derive(Deserialize, Serialize, Debug, Default, Clone, PartialEq, Eq, Hash)]
+pub enum FunctionVisibility {
+    /// Not exported.
+    #[default]
+    Private,
+    /// Exported under the given (non-empty) symbol name.
+    Public(String),
+}
+
 #[derive(Deserialize, Serialize, Debug, Clone, PartialEq, Eq, Hash)]
 pub struct StaticData {
     pub name: String,
